@@ -1,1 +1,990 @@
-Selamat belajar
+Berikut adalah kode HTML lengkap untuk sistem pengumpulan tugas online **PAPERLESS CLASS**. Sistem ini menggunakan **Firebase** sebagai backend gratis untuk menyimpan data dan file secara online, sehingga guru dapat mengakses tugas siswa kapan saja.
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paperless Class - Pengumpulan Tugas Digital</title>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+  // ============================================================
+  // 🔧 KONFIGURASI FIREBASE — GANTI DENGAN MILIK ANDA
+  // Buat project gratis di https://console.firebase.google.com
+  // Aktifkan Firestore Database & Storage
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "ISI_API_KEY_ANDA",
+    authDomain: "ISI_AUTH_DOMAIN_ANDA",
+    projectId: "ISI_PROJECT_ID_ANDA",
+    storageBucket: "ISI_STORAGE_BUCKET_ANDA",
+    messagingSenderId: "ISI_SENDER_ID_ANDA",
+    appId: "ISI_APP_ID_ANDA"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  // Expose ke global agar bisa dipakai di script biasa
+  window.__FIREBASE__ = { db, storage, collection, addDoc, getDocs,
+    serverTimestamp, query, orderBy, ref, uploadBytes, getDownloadURL };
+</script>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --hijau: #16a34a;
+    --hijau-tua: #15803d;
+    --biru: #2563eb;
+    --biru-muda: #dbeafe;
+    --hijau-muda: #dcfce7;
+    --abu: #f1f5f9;
+    --teks: #1e293b;
+    --teks-muda: #64748b;
+    --putih: #ffffff;
+    --merah: #dc2626;
+    --kuning: #d97706;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+    color: var(--teks);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .badge-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--hijau-muda);
+    color: var(--hijau-tua);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--hijau);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .header h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, var(--hijau), var(--biru));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .header p {
+    color: var(--teks-muda);
+    font-size: 15px;
+  }
+
+  /* TAB NAVIGASI */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    background: var(--putih);
+    padding: 6px;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--teks-muda);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .tab.active {
+    background: linear-gradient(135deg, var(--hijau), var(--biru));
+    color: var(--putih);
+    box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+  }
+
+  .tab:not(.active):hover {
+    background: var(--abu);
+  }
+
+  /* CARD */
+  .card {
+    background: var(--putih);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    font-size: 1.3rem;
+    margin-bottom: 6px;
+    color: var(--teks);
+  }
+
+  .card .subtitle {
+    color: var(--teks-muda);
+    font-size: 14px;
+    margin-bottom: 22px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--hijau-tua);
+    margin: 24px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--hijau-muda);
+  }
+
+  .section-title:first-of-type { margin-top: 0; }
+
+  /* FORM */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--teks);
+  }
+
+  label .req { color: var(--merah); }
+
+  input, textarea, select {
+    padding: 11px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--teks);
+    transition: all 0.2s;
+    background: var(--putih);
+    width: 100%;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--hijau);
+    box-shadow: 0 0 0 3px rgba(22,163,74,0.12);
+  }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* UPLOAD AREA */
+  .upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f8fafc;
+  }
+
+  .upload-area:hover, .upload-area.dragover {
+    border-color: var(--hijau);
+    background: var(--hijau-muda);
+  }
+
+  .upload-area .icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-area .main-text {
+    font-weight: 600;
+    color: var(--hijau-tua);
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .upload-area .hint {
+    font-size: 12px;
+    color: var(--teks-muda);
+  }
+
+  .file-preview {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--hijau-muda);
+    border-radius: 10px;
+    border: 1px solid #86efac;
+  }
+
+  .file-preview.show { display: flex; }
+
+  .file-preview .file-icon { font-size: 28px; }
+
+  .file-preview .file-info { flex: 1; text-align: left; }
+  .file-preview .file-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--teks);
+    word-break: break-all;
+  }
+  .file-preview .file-size {
+    font-size: 12px;
+    color: var(--teks-muda);
+  }
+
+  .file-preview .remove-btn {
+    background: var(--merah);
+    color: var(--putih);
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  /* BUTTON */
+  .btn {
+    padding: 13px 28px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--hijau), var(--biru));
+    color: var(--putih);
+    box-shadow: 0 6px 20px rgba(22,163,74,0.3);
+    width: 100%;
+    margin-top: 24px;
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(22,163,74,0.4); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .btn-outline {
+    background: var(--putih);
+    border: 2px solid var(--biru);
+    color: var(--biru);
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .btn-outline:hover { background: var(--biru-muda); }
+
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .btn-refresh {
+    background: var(--putih);
+    border: 2px solid #e2e8f0;
+    color: var(--teks-muda);
+    padding: 8px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .btn-refresh:hover { border-color: var(--biru); color: var(--biru); }
+
+  /* NOTIFIKASI */
+  .notification {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 16px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .notification.show { display: flex; }
+  .notification.success { background: var(--hijau-muda); color: var(--hijau-tua); border: 1px solid #86efac; }
+  .notification.error { background: #fee2e2; color: var(--merah); border: 1px solid #fca5a5; }
+
+  /* STATUS BADGE */
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge.ontime { background: var(--hijau-muda); color: var(--hijau-tua); }
+  .badge.late { background: #fef3c7; color: var(--kuning); }
+  .badge.none { background: #fee2e2; color: var(--merah); }
+
+  /* TABEL GURU */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    padding: 16px;
+    border-radius: 12px;
+    text-align: center;
+    background: var(--abu);
+  }
+  .stat-card .num {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-card .lbl {
+    font-size: 12px;
+    color: var(--teks-muda);
+    margin-top: 4px;
+  }
+  .stat-card.s1 .num { color: var(--hijau); }
+  .stat-card.s2 .num { color: var(--merah); }
+  .stat-card.s3 .num { color: var(--biru); }
+
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 12px;
+    background: var(--abu);
+    color: var(--teks-muda);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+
+  tr:hover td { background: #f8fafc; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--teks-muda);
+    font-size: 14px;
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
+
+  .teacher-note-input {
+    width: 90px;
+    padding: 6px 8px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  .config-warning {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .config-warning code {
+    background: #fde68a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.6rem; }
+    .card { padding: 20px; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .tab { font-size: 12px; padding: 10px 6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge-online">
+      <span class="dot"></span> Online
+    </div>
+    <h1>Digital Assignment</h1>
+    <p>Paperless Class — Sistem Pengumpulan Tugas Sekolah</p>
+  </div>
+
+  <!-- TAB -->
+  <div class="tabs">
+    <button class="tab active" data-tab="siswa">📤 Kumpulkan Tugas</button>
+    <button class="tab" data-tab="guru">👨‍🏫 Dashboard Guru</button>
+  </div>
+
+  <!-- ================= TAB SISWA ================= -->
+  <div id="panel-siswa">
+
+    <div class="config-warning" id="configWarning">
+      ⚠️ <b>Firebase belum dikonfigurasi.</b> Buka file HTML ini dan ganti
+      <code>firebaseConfig</code> dengan konfigurasi project Firebase Anda
+      (kunjungi <b>console.firebase.google.com</b>). Selama belum diisi,
+      data tidak akan tersimpan permanen.
+    </div>
+
+    <div class="card">
+      <h2>Formulir Pengumpulan Tugas</h2>
+      <p class="subtitle">Isi data dengan lengkap, lalu unggah file tugas Anda.</p>
+
+      <form id="formTugas">
+
+        <!-- IDENTITAS SISWA -->
+        <div class="section-title">1. Identitas Siswa</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nama Lengkap <span class="req">*</span></label>
+            <input type="text" id="nama" placeholder="Contoh: Budi Santoso" required>
+          </div>
+          <div class="form-group">
+            <label>Kelas <span class="req">*</span></label>
+            <input type="text" id="kelas" placeholder="Contoh: XI IPS 2" required>
+          </div>
+          <div class="form-group">
+            <label>Nomor Absen <span class="req">*</span></label>
+            <input type="number" id="absen" placeholder="Contoh: 12" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>Mata Pelajaran <span class="req">*</span></label>
+            <input type="text" id="mapel" placeholder="Contoh: Sosiologi" required>
+          </div>
+          <div class="form-group">
+            <label>Nama Guru Pengampu <span class="req">*</span></label>
+            <input type="text" id="guru" placeholder="Contoh: Ibu Siti" required>
+          </div>
+        </div>
+
+        <!-- INFO TUGAS -->
+        <div class="section-title">2. Informasi Tugas</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Judul Tugas <span class="req">*</span></label>
+            <input type="text" id="judul" placeholder="Contoh: Analisis Perubahan Sosial" required>
+          </div>
+          <div class="form-group full">
+            <label>Deskripsi / Instruksi Tugas</label>
+            <textarea id="deskripsi" placeholder="Jelaskan tugas yang diberikan..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Pemberian <span class="req">*</span></label>
+            <input type="date" id="tglBeri" required>
+          </div>
+          <div class="form-group">
+            <label>Batas Waktu (Deadline) <span class="req">*</span></label>
+            <input type="datetime-local" id="deadline" required>
+          </div>
+        </div>
+
+        <!-- UPLOAD FILE -->
+        <div class="section-title">3. Unggah File Tugas</div>
+        <div class="upload-area" id="uploadArea">
+          <div class="icon">📁</div>
+          <div class="main-text">Pilih file tugas</div>
+          <div class="hint">PDF, DOCX, PPTX, XLSX, JPG, PNG — Maks. 10 MB</div>
+        </div>
+        <input type="file" id="fileInput" class="hidden"
+               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png">
+
+        <div class="file-preview" id="filePreview">
+          <div class="file-icon" id="fileIcon">📄</div>
+          <div class="file-info">
+            <div class="file-name" id="fileName">-</div>
+            <div class="file-size" id="fileSize">-</div>
+          </div>
+          <button type="button" class="remove-btn" id="removeFile">×</button>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          📤 Kumpulkan Tugas
+        </button>
+
+        <div class="notification" id="notifSiswa"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= TAB GURU ================= -->
+  <div id="panel-guru" class="hidden">
+
+    <div class="config-warning" id="configWarning2">
+      ⚠️ <b>Firebase belum dikonfigurasi.</b> Ganti <code>firebaseConfig</code>
+      di dalam kode agar dashboard guru dapat menampilkan data.
+    </div>
+
+    <div class="card">
+      <h2>Dashboard Guru</h2>
+      <p class="subtitle">Pantau tugas yang dikumpulkan siswa, unduh file, beri nilai & catatan.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card s1">
+          <div class="num" id="statTotal">0</div>
+          <div class="lbl">Total Tugas</div>
+        </div>
+        <div class="stat-card s2">
+          <div class="num" id="statLate">0</div>
+          <div class="lbl">Terlambat</div>
+        </div>
+        <div class="stat-card s3">
+          <div class="num" id="statOntime">0</div>
+          <div class="lbl">Tepat Waktu</div>
+        </div>
+      </div>
+
+      <button class="btn btn-refresh" id="refreshBtn">🔄 Muat Ulang Data</button>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama / Kelas</th>
+              <th>Mata Pelajaran</th>
+              <th>Judul Tugas</th>
+              <th>File</th>
+              <th>Waktu Kumpul</th>
+              <th>Status</th>
+              <th>Nilai & Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="tabelGuru">
+            <tr><td colspan="8" class="empty-state">Belum ada data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// LOGIKA FRONTEND
+// ============================================================
+
+// --- Tab Switching ---
+const tabs = document.querySelectorAll('.tab');
+const panelSiswa = document.getElementById('panel-siswa');
+const panelGuru = document.getElementById('panel-guru');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    if (tab.dataset.tab === 'siswa') {
+      panelSiswa.classList.remove('hidden');
+      panelGuru.classList.add('hidden');
+    } else {
+      panelSiswa.classList.add('hidden');
+      panelGuru.classList.remove('hidden');
+      loadDataGuru();
+    }
+  });
+});
+
+// --- Elemen File ---
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const fileNameEl = document.getElementById('fileName');
+const fileSizeEl = document.getElementById('fileSize');
+const fileIconEl = document.getElementById('fileIcon');
+const removeFileBtn = document.getElementById('removeFile');
+
+let selectedFile = null;
+
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXT = ['pdf','doc','docx','ppt','pptx','xls','xlsx','jpg','jpeg','png'];
+
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadArea.classList.add('dragover');
+});
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!ALLOWED_EXT.includes(ext)) {
+    showNotif('notifSiswa', 'error', '❌ Format file tidak didukung. Gunakan PDF, DOCX, PPTX, XLSX, JPG, atau PNG.');
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    showNotif('notifSiswa', 'error', '❌ Ukuran file melebihi 10 MB.');
+    return;
+  }
+  selectedFile = file;
+  filePreview.classList.add('show');
+  fileNameEl.textContent = file.name;
+  fileSizeEl.textContent = formatSize(file.size);
+  fileIconEl.textContent = getIcon(file.name);
+}
+
+function getIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '📕';
+  if (['doc','docx'].includes(ext)) return '📘';
+  if (['ppt','pptx'].includes(ext)) return '📙';
+  if (['xls','xlsx'].includes(ext)) return '📗';
+  if (['jpg','jpeg','png'].includes(ext)) return '🖼️';
+  return '📄';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+}
+
+removeFileBtn.addEventListener('click', () => {
+  selectedFile = null;
+  fileInput.value = '';
+  filePreview.classList.remove('show');
+});
+
+// --- Notifikasi ---
+function showNotif(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = 'notification ' + type + ' show';
+  el.textContent = msg;
+  if (type === 'success') {
+    setTimeout(() => el.classList.remove('show'), 6000);
+  }
+}
+
+// --- Cek konfigurasi Firebase ---
+function isFirebaseConfigured() {
+  return window.__FIREBASE__ &&
+    window.__FIREBASE__ &&
+    !window.__FIREBASE__.db.app.options.apiKey?.includes('ISI_');
+}
+
+function checkConfigWarning() {
+  const ok = window.__FIREBASE__ && window.__FIREBASE__.db.app.options.apiKey;
+  if (!ok || ok === 'ISI_API_KEY_ANDA') {
+    document.getElementById('configWarning').style.display = 'block';
+    document.getElementById('configWarning2').style.display = 'block';
+  } else {
+    document.getElementById('configWarning').style.display = 'none';
+    document.getElementById('configWarning2').style.display = 'none';
+  }
+}
+setTimeout(checkConfigWarning, 500);
+
+// --- Tanggal default ---
+document.getElementById('tglBeri').valueAsDate = new Date();
+
+// --- Submit Tugas ---
+document.getElementById('formTugas').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const btn = document.getElementById('submitBtn');
+  const notif = document.getElementById('notifSiswa');
+
+  if (!selectedFile) {
+    showNotif('notifSiswa', 'error', '❌ Silakan pilih file tugas terlebih dahulu.');
+    return;
+  }
+
+  if (!window.__FIREBASE__) {
+    showNotif('notifSiswa', 'error', '❌ Firebase belum siap. Periksa konfigurasi.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Mengunggah...';
+  notif.classList.remove('show');
+
+  try {
+    const F = window.__FIREBASE__;
+
+    // 1. Upload file ke Storage
+    const safeName = Date.now() + '_' + selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageRef = F.ref(F.storage, 'tugas/' + safeName);
+    await F.uploadBytes(storageRef, selectedFile);
+    const fileURL = await F.getDownloadURL(storageRef);
+
+    // 2. Simpan metadata ke Firestore
+    const deadlineVal = document.getElementById('deadline').value;
+    const deadline = new Date(deadlineVal);
+    const now = new Date();
+    const status = now > deadline ? 'terlambat' : 'tepat_waktu';
+
+    const data = {
+      nama: document.getElementById('nama').value.trim(),
+      kelas: document.getElementById('kelas').value.trim(),
+      absen: document.getElementById('absen').value,
+      mapel: document.getElementById('mapel').value.trim(),
+      guru: document.getElementById('guru').value.trim(),
+      judul: document.getElementById('judul').value.trim(),
+      deskripsi: document.getElementById('deskripsi').value.trim(),
+      tglBeri: document.getElementById('tglBeri').value,
+      deadline: deadlineVal,
+      fileName: selectedFile.name,
+      fileSize: selectedFile.size,
+      fileURL: fileURL,
+      status: status,
+      submittedAt: F.serverTimestamp(),
+      nilai: '',
+      catatan: ''
+    };
+
+    await F.addDoc(F.collection(F.db, 'tugas'), data);
+
+    showNotif('notifSiswa', 'success',
+      '✅ Tugas berhasil dikumpulkan! Status: ' +
+      (status === 'terlambat' ? 'Terlambat' : 'Tepat Waktu') + '.');
+
+    // Reset form
+    document.getElementById('formTugas').reset();
+    document.getElementById('tglBeri').valueAsDate = new Date();
+    selectedFile = null;
+    filePreview.classList.remove('show');
+    fileInput.value = '';
+
+  } catch (err) {
+    console.error(err);
+    showNotif('notifSiswa', 'error',
+      '❌ Gagal mengirim: ' + (err.message || 'Terjadi kesalahan.'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Kumpulkan Tugas';
+  }
+});
+
+// --- Load Data untuk Guru ---
+async function loadDataGuru() {
+  const tbody = document.getElementById('tabelGuru');
+
+  if (!window.__FIREBASE__) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Firebase belum dikonfigurasi.</td></tr>';
+    return;
+  }
+
+  const F = window.__FIREBASE__;
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">⏳ Memuat data...</td></tr>';
+
+  try {
+    const q = F.query(F.collection(F.db, 'tugas'), F.orderBy('submittedAt', 'desc'));
+    const snap = await F.getDocs(q);
+
+    let total = 0, late = 0, ontime = 0;
+    const rows = [];
+
+    snap.forEach((doc) => {
+      const d = doc.data();
+      total++;
+      if (d.status === 'terlambat') late++; else ontime++;
+
+      const waktu = d.submittedAt?.toDate
+        ? d.submittedAt.toDate().toLocaleString('id-ID')
+        : '-';
+
+      rows.push(`
+        <tr data-id="${doc.id}">
+          <td>${rows.length + 1}</td>
+          <td><b>${escapeHtml(d.nama)}</b><br><small>${escapeHtml(d.kelas)} · No. ${escapeHtml(String(d.absen))}</small></td>
+          <td>${escapeHtml(d.mapel)}<br><small>Guru: ${escapeHtml(d.guru)}</small></td>
+          <td>${escapeHtml(d.judul)}</td>
+          <td>
+            <a href="${d.fileURL}" target="_blank" class="btn btn-outline btn-sm">📥 Unduh</a><br>
+            <small>${escapeHtml(d.fileName)}</small>
+          </td>
+          <td><small>${waktu}</small></td>
+          <td>
+            <span class="badge ${d.status === 'terlambat' ? 'late' : 'ontime'}">
+              ${d.status === 'terlambat' ? 'Terlambat' : 'Tepat Waktu'}
+            </span>
+          </td>
+          <td>
+            <input type="number" class="teacher-note-input" placeholder="Nilai"
+                   value="${d.nilai || ''}" min="0" max="100"
+                   onchange="simpanNilai('${doc.id}', this.value, 'nilai')">
+            <input type="text" class="teacher-note-input" placeholder="Catatan"
+                   value="${escapeHtml(d.catatan || '')}"
+                   onchange="simpanNilai('${doc.id}', this.value, 'catatan')">
+          </td>
+        </tr>
+      `);
+    });
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statLate').textContent = late;
+    document.getElementById('statOntime').textContent = ontime;
+
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="icon">📭</div>Belum ada tugas yang dikumpulkan.</td></tr>';
+    } else {
+      tbody.innerHTML = rows.join('');
+    }
+
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">❌ Gagal memuat: ${err.message}</td></tr>`;
+  }
+}
+
+// --- Simpan nilai/catatan guru ---
+window.simpanNilai = async function(docId, value, field) {
+  if (!window.__FIREBASE__) return;
+  const F = window.__FIREBASE__;
+  try {
+    // updateDoc butuh import khusus — kita pakai setDoc/update via compat
+    const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    await updateDoc(doc(F.db, 'tugas', docId), { [field]: value });
+    console.log('Tersimpan:', field, value);
+  } catch (err) {
+    console.error('Gagal simpan nilai:', err);
+    alert('Gagal menyimpan nilai: ' + err.message);
+  }
+};
+
+document.getElementById('refreshBtn').addEventListener('click', loadDataGuru);
+
+// --- Util escape HTML ---
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Load awal jika tab guru aktif
+if (!panelGuru.classList.contains('hidden')) loadDataGuru();
+</script>
+
+</body>
+</html>
+```
+
+---
+
+## 🔧 Cara Mengaktifkan Penyimpanan Online (Firebase)
+
+Agar file dan data benar-benar tersimpan, ikuti langkah ini:
+
+1. **Buka** [console.firebase.google.com](https://console.firebase.google.com) → **Add Project** (gratis).
+2. Di menu kiri, klik **Build → Firestore Database** → **Create Database** → pilih mode *test* (untuk pengembangan).
+3. Klik **Build → Storage** → **Get Started** → mode *test*.
+4. Buka **Project Settings (⚙️) → Your apps → Web (`</>`)** → daftarkan aplikasi → salin `firebaseConfig`.
+5. **Tempel** konfigurasi tersebut ke dalam kode di atas, menggantikan bagian:
+   ```js
+   const firebaseConfig = { apiKey: "ISI_API_KEY_ANDA", ... };
+   ```
+6. Simpan file sebagai `index.html`, lalu buka di browser. Selesai! ✅
+
+### Aturan Keamanan (Opsional, untuk produksi)
+Di Firestore → Rules:
+```
+allow read, write: if true; // sementara
+```
+Di Storage → Rules:
+```
+allow read, write: if true; // sementara
+```
+
+---
+
+## ✨ Fitur yang Sudah Berfungsi
+- ✅ Form lengkap (identitas, info tugas, upload).
+- ✅ Upload file **nyata** ke cloud (PDF, DOCX, PPTX, XLSX, JPG, PNG).
+- ✅ Deteksi status **Tepat Waktu / Terlambat** otomatis.
+- ✅ Dashboard guru: statistik, daftar siswa, unduh file, input nilai & catatan.
+- ✅ Desain responsif (HP & laptop) dengan warna hijau–putih–biru sesuai permintaan.
+- ✅ Notifikasi sukses/gagal.
+
+> **Catatan:** Jika Anda tidak ingin memakai Firebase, alternatifnya adalah **Google Forms + Google Drive** (sesuai saran di file), namun itu tidak bisa memberi dashboard guru otomatis seperti kode di atas. Kode HTML ini adalah versi *full-stack* paling ringan yang bisa langsung Anda host di GitHub Pages / Netlify secara gratis.
