@@ -1,6 +1,3 @@
-Berikut adalah kode HTML lengkap untuk sistem pengumpulan tugas online **PAPERLESS CLASS**. Sistem ini menggunakan **Firebase** sebagai backend gratis untuk menyimpan data dan file secara online, sehingga guru dapat mengakses tugas siswa kapan saja.
-
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -949,42 +946,3 @@ if (!panelGuru.classList.contains('hidden')) loadDataGuru();
 
 </body>
 </html>
-```
-
----
-
-## 🔧 Cara Mengaktifkan Penyimpanan Online (Firebase)
-
-Agar file dan data benar-benar tersimpan, ikuti langkah ini:
-
-1. **Buka** [console.firebase.google.com](https://console.firebase.google.com) → **Add Project** (gratis).
-2. Di menu kiri, klik **Build → Firestore Database** → **Create Database** → pilih mode *test* (untuk pengembangan).
-3. Klik **Build → Storage** → **Get Started** → mode *test*.
-4. Buka **Project Settings (⚙️) → Your apps → Web (`</>`)** → daftarkan aplikasi → salin `firebaseConfig`.
-5. **Tempel** konfigurasi tersebut ke dalam kode di atas, menggantikan bagian:
-   ```js
-   const firebaseConfig = { apiKey: "ISI_API_KEY_ANDA", ... };
-   ```
-6. Simpan file sebagai `index.html`, lalu buka di browser. Selesai! ✅
-
-### Aturan Keamanan (Opsional, untuk produksi)
-Di Firestore → Rules:
-```
-allow read, write: if true; // sementara
-```
-Di Storage → Rules:
-```
-allow read, write: if true; // sementara
-```
-
----
-
-## ✨ Fitur yang Sudah Berfungsi
-- ✅ Form lengkap (identitas, info tugas, upload).
-- ✅ Upload file **nyata** ke cloud (PDF, DOCX, PPTX, XLSX, JPG, PNG).
-- ✅ Deteksi status **Tepat Waktu / Terlambat** otomatis.
-- ✅ Dashboard guru: statistik, daftar siswa, unduh file, input nilai & catatan.
-- ✅ Desain responsif (HP & laptop) dengan warna hijau–putih–biru sesuai permintaan.
-- ✅ Notifikasi sukses/gagal.
-
-> **Catatan:** Jika Anda tidak ingin memakai Firebase, alternatifnya adalah **Google Forms + Google Drive** (sesuai saran di file), namun itu tidak bisa memberi dashboard guru otomatis seperti kode di atas. Kode HTML ini adalah versi *full-stack* paling ringan yang bisa langsung Anda host di GitHub Pages / Netlify secara gratis.
