@@ -5,35 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paperless Class - Pengumpulan Tugas Digital</title>
 
-<!-- Firebase SDK -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+/* ============================================================
+   ⬇️⬇️⬇️  GANTI 6 BARIS DI BAWAH INI SAJA  ⬇️⬇️⬇️
+   Cara dapat nilainya:
+   1. Buka https://console.firebase.google.com
+   2. Buat proyek baru (gratis)
+   3. Klik ikon Web (</>) → daftarkan aplikasi
+   4. Salin objek firebaseConfig yang muncul, tempel di sini
+   ============================================================ */
+const firebaseConfig = {
+  apiKey:            "ISI_API_KEY_ANDA",
+  authDomain:        "ISI_AUTH_DOMAIN_ANDA",
+  projectId:         "ISI_PROJECT_ID_ANDA",
+  storageBucket:     "ISI_STORAGE_BUCKET_ANDA",
+  messagingSenderId: "ISI_SENDER_ID_ANDA",
+  appId:             "ISI_APP_ID_ANDA"
+};
+/* ⬆️⬆️⬆️  HANYA BAGIAN INI YANG DIUBAH  ⬆️⬆️⬆️ */
 
-  // ============================================================
-  // 🔧 KONFIGURASI FIREBASE — GANTI DENGAN MILIK ANDA
-  // Buat project gratis di https://console.firebase.google.com
-  // Aktifkan Firestore Database & Storage
-  // ============================================================
-  const firebaseConfig = {
-    apiKey: "ISI_API_KEY_ANDA",
-    authDomain: "ISI_AUTH_DOMAIN_ANDA",
-    projectId: "ISI_PROJECT_ID_ANDA",
-    storageBucket: "ISI_STORAGE_BUCKET_ANDA",
-    messagingSenderId: "ISI_SENDER_ID_ANDA",
-    appId: "ISI_APP_ID_ANDA"
-  };
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, serverTimestamp,
+         query, orderBy, doc, updateDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const storage = getStorage(app);
+let app, db, storage, firebaseReady = false;
 
-  // Expose ke global agar bisa dipakai di script biasa
-  window.__FIREBASE__ = { db, storage, collection, addDoc, getDocs,
-    serverTimestamp, query, orderBy, ref, uploadBytes, getDownloadURL };
+try {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  firebaseReady = true;
+
+  // Cek apakah config masih placeholder
+  if (firebaseConfig.apiKey.includes("ISI_")) {
+    firebaseReady = false;
+  }
+} catch (e) {
+  console.error("Firebase init gagal:", e);
+  firebaseReady = false;
+}
+
+// Ekspos ke script global
+window.__FB__ = firebaseReady ? {
+  db, storage, collection, addDoc, getDocs, serverTimestamp,
+  query, orderBy, doc, updateDoc, ref, uploadBytes, getDownloadURL
+} : null;
+
+// Beri sinyal ke script bawah
+window.dispatchEvent(new Event('firebase-ready'));
 </script>
 
 <style>
@@ -61,405 +83,212 @@
     padding: 20px;
   }
 
-  .container {
-    max-width: 1000px;
-    margin: 0 auto;
-  }
+  .container { max-width: 1000px; margin: 0 auto; }
 
   /* HEADER */
-  .header {
-    text-align: center;
-    margin-bottom: 30px;
-  }
+  .header { text-align: center; margin-bottom: 30px; }
 
   .badge-online {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--hijau-muda);
-    color: var(--hijau-tua);
-    padding: 6px 16px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--hijau-muda); color: var(--hijau-tua);
+    padding: 6px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; margin-bottom: 12px;
   }
 
   .dot {
-    width: 8px;
-    height: 8px;
-    background: var(--hijau);
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
+    width: 8px; height: 8px; background: var(--hijau);
+    border-radius: 50%; animation: pulse 1.5s infinite;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   .header h1 {
     font-size: 2.2rem;
     background: linear-gradient(135deg, var(--hijau), var(--biru));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 8px;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
   }
 
-  .header p {
-    color: var(--teks-muda);
-    font-size: 15px;
-  }
+  .header p { color: var(--teks-muda); font-size: 15px; }
 
-  /* TAB NAVIGASI */
+  /* TAB */
   .tabs {
-    display: flex;
-    gap: 8px;
-    background: var(--putih);
-    padding: 6px;
-    border-radius: 14px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-    margin-bottom: 24px;
+    display: flex; gap: 8px; background: var(--putih);
+    padding: 6px; border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-bottom: 24px;
   }
 
   .tab {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    background: transparent;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--teks-muda);
-    cursor: pointer;
-    transition: all 0.2s;
+    flex: 1; padding: 12px; border: none; background: transparent;
+    border-radius: 10px; font-size: 14px; font-weight: 600;
+    color: var(--teks-muda); cursor: pointer; transition: all 0.2s;
     font-family: inherit;
   }
 
   .tab.active {
     background: linear-gradient(135deg, var(--hijau), var(--biru));
-    color: var(--putih);
-    box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+    color: var(--putih); box-shadow: 0 4px 12px rgba(22,163,74,0.3);
   }
 
-  .tab:not(.active):hover {
-    background: var(--abu);
-  }
+  .tab:not(.active):hover { background: var(--abu); }
 
   /* CARD */
   .card {
-    background: var(--putih);
-    border-radius: 18px;
-    padding: 28px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-    margin-bottom: 20px;
+    background: var(--putih); border-radius: 18px; padding: 28px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08); margin-bottom: 20px;
   }
 
-  .card h2 {
-    font-size: 1.3rem;
-    margin-bottom: 6px;
-    color: var(--teks);
-  }
-
-  .card .subtitle {
-    color: var(--teks-muda);
-    font-size: 14px;
-    margin-bottom: 22px;
-  }
+  .card h2 { font-size: 1.3rem; margin-bottom: 6px; }
+  .card .subtitle { color: var(--teks-muda); font-size: 14px; margin-bottom: 22px; }
 
   .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--hijau-tua);
-    margin: 24px 0 14px;
-    padding-bottom: 8px;
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--hijau-tua);
+    margin: 24px 0 14px; padding-bottom: 8px;
     border-bottom: 2px solid var(--hijau-muda);
   }
-
   .section-title:first-of-type { margin-top: 0; }
 
   /* FORM */
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group.full { grid-column: 1 / -1; }
 
-  label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--teks);
-  }
-
+  label { font-size: 13px; font-weight: 600; }
   label .req { color: var(--merah); }
 
   input, textarea, select {
-    padding: 11px 14px;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--teks);
-    transition: all 0.2s;
-    background: var(--putih);
-    width: 100%;
+    padding: 11px 14px; border: 2px solid #e2e8f0;
+    border-radius: 10px; font-size: 14px; font-family: inherit;
+    color: var(--teks); transition: all 0.2s;
+    background: var(--putih); width: 100%;
   }
 
   input:focus, textarea:focus, select:focus {
-    outline: none;
-    border-color: var(--hijau);
+    outline: none; border-color: var(--hijau);
     box-shadow: 0 0 0 3px rgba(22,163,74,0.12);
   }
 
   textarea { resize: vertical; min-height: 80px; }
 
-  /* UPLOAD AREA */
+  /* UPLOAD */
   .upload-area {
-    border: 2px dashed #cbd5e1;
-    border-radius: 14px;
-    padding: 36px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: #f8fafc;
+    border: 2px dashed #cbd5e1; border-radius: 14px;
+    padding: 36px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: #f8fafc;
   }
-
   .upload-area:hover, .upload-area.dragover {
-    border-color: var(--hijau);
-    background: var(--hijau-muda);
+    border-color: var(--hijau); background: var(--hijau-muda);
   }
-
   .upload-area .icon { font-size: 40px; margin-bottom: 10px; }
-  .upload-area .main-text {
-    font-weight: 600;
-    color: var(--hijau-tua);
-    font-size: 15px;
-    margin-bottom: 4px;
-  }
-  .upload-area .hint {
-    font-size: 12px;
-    color: var(--teks-muda);
-  }
+  .upload-area .main-text { font-weight: 600; color: var(--hijau-tua); font-size: 15px; margin-bottom: 4px; }
+  .upload-area .hint { font-size: 12px; color: var(--teks-muda); }
 
   .file-preview {
-    display: none;
-    align-items: center;
-    gap: 12px;
-    margin-top: 14px;
-    padding: 14px 16px;
-    background: var(--hijau-muda);
-    border-radius: 10px;
+    display: none; align-items: center; gap: 12px;
+    margin-top: 14px; padding: 14px 16px;
+    background: var(--hijau-muda); border-radius: 10px;
     border: 1px solid #86efac;
   }
-
   .file-preview.show { display: flex; }
-
   .file-preview .file-icon { font-size: 28px; }
-
   .file-preview .file-info { flex: 1; text-align: left; }
-  .file-preview .file-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--teks);
-    word-break: break-all;
-  }
-  .file-preview .file-size {
-    font-size: 12px;
-    color: var(--teks-muda);
-  }
-
+  .file-preview .file-name { font-weight: 600; font-size: 14px; word-break: break-all; }
+  .file-preview .file-size { font-size: 12px; color: var(--teks-muda); }
   .file-preview .remove-btn {
-    background: var(--merah);
-    color: var(--putih);
-    border: none;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
+    background: var(--merah); color: var(--putih); border: none;
+    width: 30px; height: 30px; border-radius: 50%;
+    cursor: pointer; font-size: 16px; line-height: 1;
   }
 
   /* BUTTON */
   .btn {
-    padding: 13px 28px;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    padding: 13px 28px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   }
 
   .btn-primary {
     background: linear-gradient(135deg, var(--hijau), var(--biru));
-    color: var(--putih);
-    box-shadow: 0 6px 20px rgba(22,163,74,0.3);
-    width: 100%;
-    margin-top: 24px;
+    color: var(--putih); box-shadow: 0 6px 20px rgba(22,163,74,0.3);
+    width: 100%; margin-top: 24px;
   }
-
   .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(22,163,74,0.4); }
   .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
   .btn-outline {
-    background: var(--putih);
-    border: 2px solid var(--biru);
-    color: var(--biru);
-    padding: 8px 16px;
-    font-size: 13px;
+    background: var(--putih); border: 2px solid var(--biru);
+    color: var(--biru); padding: 8px 16px; font-size: 13px;
   }
   .btn-outline:hover { background: var(--biru-muda); }
-
   .btn-sm { padding: 6px 12px; font-size: 12px; }
 
   .btn-refresh {
-    background: var(--putih);
-    border: 2px solid #e2e8f0;
-    color: var(--teks-muda);
-    padding: 8px 16px;
-    font-size: 13px;
-    margin-bottom: 16px;
+    background: var(--putih); border: 2px solid #e2e8f0;
+    color: var(--teks-muda); padding: 8px 16px;
+    font-size: 13px; margin-bottom: 16px;
   }
   .btn-refresh:hover { border-color: var(--biru); color: var(--biru); }
 
-  /* NOTIFIKASI */
+  /* NOTIF */
   .notification {
-    display: none;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 18px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
-    margin-top: 16px;
+    display: none; align-items: center; gap: 10px;
+    padding: 14px 18px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; margin-top: 16px;
     animation: slideIn 0.3s ease;
   }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
   .notification.show { display: flex; }
   .notification.success { background: var(--hijau-muda); color: var(--hijau-tua); border: 1px solid #86efac; }
   .notification.error { background: #fee2e2; color: var(--merah); border: 1px solid #fca5a5; }
 
-  /* STATUS BADGE */
-  .badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-  }
+  /* BADGE */
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; }
   .badge.ontime { background: var(--hijau-muda); color: var(--hijau-tua); }
   .badge.late { background: #fef3c7; color: var(--kuning); }
   .badge.none { background: #fee2e2; color: var(--merah); }
 
-  /* TABEL GURU */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .stat-card {
-    padding: 16px;
-    border-radius: 12px;
-    text-align: center;
-    background: var(--abu);
-  }
-  .stat-card .num {
-    font-size: 1.8rem;
-    font-weight: 700;
-    line-height: 1;
-  }
-  .stat-card .lbl {
-    font-size: 12px;
-    color: var(--teks-muda);
-    margin-top: 4px;
-  }
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { padding: 16px; border-radius: 12px; text-align: center; background: var(--abu); }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .stat-card .lbl { font-size: 12px; color: var(--teks-muda); margin-top: 4px; }
   .stat-card.s1 .num { color: var(--hijau); }
   .stat-card.s2 .num { color: var(--merah); }
   .stat-card.s3 .num { color: var(--biru); }
 
+  /* TABLE */
   .table-wrap { overflow-x: auto; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th {
-    text-align: left;
-    padding: 12px;
-    background: var(--abu);
-    color: var(--teks-muda);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 700;
-    border-bottom: 2px solid #e2e8f0;
+    text-align: left; padding: 12px; background: var(--abu);
+    color: var(--teks-muda); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 700; border-bottom: 2px solid #e2e8f0;
   }
-
-  td {
-    padding: 12px;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-  }
-
+  td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
   tr:hover td { background: #f8fafc; }
 
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--teks-muda);
-    font-size: 14px;
-  }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--teks-muda); font-size: 14px; }
   .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
 
   .teacher-note-input {
-    width: 90px;
-    padding: 6px 8px;
-    font-size: 12px;
-    border-radius: 8px;
+    width: 90px; padding: 6px 8px; font-size: 12px;
+    border-radius: 8px; border: 2px solid #e2e8f0;
   }
 
   .config-warning {
-    background: #fef3c7;
-    border: 1px solid #fcd34d;
-    color: #92400e;
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 13px;
-    margin-bottom: 16px;
-    line-height: 1.5;
+    display: none; background: #fef3c7; border: 1px solid #fcd34d;
+    color: #92400e; padding: 14px 18px; border-radius: 10px;
+    font-size: 13px; margin-bottom: 16px; line-height: 1.6;
   }
+  .config-warning code { background: #fde68a; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
-  .config-warning code {
-    background: #fde68a;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
+  .config-ok {
+    display: none; background: var(--hijau-muda);
+    border: 1px solid #86efac; color: var(--hijau-tua);
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; margin-bottom: 16px; font-weight: 600;
   }
 
   .hidden { display: none !important; }
@@ -477,30 +306,28 @@
 
 <div class="container">
 
-  <!-- HEADER -->
   <div class="header">
-    <div class="badge-online">
-      <span class="dot"></span> Online
-    </div>
+    <div class="badge-online"><span class="dot"></span> Online</div>
     <h1>Digital Assignment</h1>
     <p>Paperless Class — Sistem Pengumpulan Tugas Sekolah</p>
   </div>
 
-  <!-- TAB -->
   <div class="tabs">
     <button class="tab active" data-tab="siswa">📤 Kumpulkan Tugas</button>
     <button class="tab" data-tab="guru">👨‍🏫 Dashboard Guru</button>
   </div>
 
-  <!-- ================= TAB SISWA ================= -->
+  <!-- ============ PANEL SISWA ============ -->
   <div id="panel-siswa">
 
     <div class="config-warning" id="configWarning">
-      ⚠️ <b>Firebase belum dikonfigurasi.</b> Buka file HTML ini dan ganti
-      <code>firebaseConfig</code> dengan konfigurasi project Firebase Anda
-      (kunjungi <b>console.firebase.google.com</b>). Selama belum diisi,
-      data tidak akan tersimpan permanen.
+      ⚠️ <b>Firebase belum dikonfigurasi.</b><br>
+      Buka file HTML ini dan ganti 6 baris di bagian <code>firebaseConfig</code>
+      (sudah ditandai komentar di bagian atas).<br>
+      Dapatkan nilainya gratis di <b>console.firebase.google.com</b> →
+      buat proyek → daftarkan aplikasi Web.
     </div>
+    <div class="config-ok" id="configOk">✅ Firebase terhubung. Data akan tersimpan permanen.</div>
 
     <div class="card">
       <h2>Formulir Pengumpulan Tugas</h2>
@@ -508,7 +335,6 @@
 
       <form id="formTugas">
 
-        <!-- IDENTITAS SISWA -->
         <div class="section-title">1. Identitas Siswa</div>
         <div class="form-grid">
           <div class="form-group full">
@@ -533,7 +359,6 @@
           </div>
         </div>
 
-        <!-- INFO TUGAS -->
         <div class="section-title">2. Informasi Tugas</div>
         <div class="form-grid">
           <div class="form-group full">
@@ -554,7 +379,6 @@
           </div>
         </div>
 
-        <!-- UPLOAD FILE -->
         <div class="section-title">3. Unggah File Tugas</div>
         <div class="upload-area" id="uploadArea">
           <div class="icon">📁</div>
@@ -573,21 +397,16 @@
           <button type="button" class="remove-btn" id="removeFile">×</button>
         </div>
 
-        <button type="submit" class="btn btn-primary" id="submitBtn">
-          📤 Kumpulkan Tugas
-        </button>
-
+        <button type="submit" class="btn btn-primary" id="submitBtn">📤 Kumpulkan Tugas</button>
         <div class="notification" id="notifSiswa"></div>
       </form>
     </div>
   </div>
 
-  <!-- ================= TAB GURU ================= -->
+  <!-- ============ PANEL GURU ============ -->
   <div id="panel-guru" class="hidden">
-
     <div class="config-warning" id="configWarning2">
-      ⚠️ <b>Firebase belum dikonfigurasi.</b> Ganti <code>firebaseConfig</code>
-      di dalam kode agar dashboard guru dapat menampilkan data.
+      ⚠️ Firebase belum dikonfigurasi. Ganti <code>firebaseConfig</code> di bagian atas kode.
     </div>
 
     <div class="card">
@@ -595,18 +414,9 @@
       <p class="subtitle">Pantau tugas yang dikumpulkan siswa, unduh file, beri nilai & catatan.</p>
 
       <div class="stats-grid">
-        <div class="stat-card s1">
-          <div class="num" id="statTotal">0</div>
-          <div class="lbl">Total Tugas</div>
-        </div>
-        <div class="stat-card s2">
-          <div class="num" id="statLate">0</div>
-          <div class="lbl">Terlambat</div>
-        </div>
-        <div class="stat-card s3">
-          <div class="num" id="statOntime">0</div>
-          <div class="lbl">Tepat Waktu</div>
-        </div>
+        <div class="stat-card s1"><div class="num" id="statTotal">0</div><div class="lbl">Total Tugas</div></div>
+        <div class="stat-card s2"><div class="num" id="statLate">0</div><div class="lbl">Terlambat</div></div>
+        <div class="stat-card s3"><div class="num" id="statOntime">0</div><div class="lbl">Tepat Waktu</div></div>
       </div>
 
       <button class="btn btn-refresh" id="refreshBtn">🔄 Muat Ulang Data</button>
@@ -615,14 +425,8 @@
         <table>
           <thead>
             <tr>
-              <th>No</th>
-              <th>Nama / Kelas</th>
-              <th>Mata Pelajaran</th>
-              <th>Judul Tugas</th>
-              <th>File</th>
-              <th>Waktu Kumpul</th>
-              <th>Status</th>
-              <th>Nilai & Catatan</th>
+              <th>No</th><th>Nama / Kelas</th><th>Mapel</th><th>Judul Tugas</th>
+              <th>File</th><th>Waktu Kumpul</th><th>Status</th><th>Nilai & Catatan</th>
             </tr>
           </thead>
           <tbody id="tabelGuru">
@@ -636,11 +440,11 @@
 </div>
 
 <script>
-// ============================================================
-// LOGIKA FRONTEND
-// ============================================================
+/* ============================================================
+   LOGIKA FRONTEND — tidak perlu diubah
+   ============================================================ */
 
-// --- Tab Switching ---
+// --- Tab switching ---
 const tabs = document.querySelectorAll('.tab');
 const panelSiswa = document.getElementById('panel-siswa');
 const panelGuru = document.getElementById('panel-guru');
@@ -660,7 +464,7 @@ tabs.forEach(tab => {
   });
 });
 
-// --- Elemen File ---
+// --- File handler ---
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
 const filePreview = document.getElementById('filePreview');
@@ -670,31 +474,22 @@ const fileIconEl = document.getElementById('fileIcon');
 const removeFileBtn = document.getElementById('removeFile');
 
 let selectedFile = null;
-
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXT = ['pdf','doc','docx','ppt','pptx','xls','xlsx','jpg','jpeg','png'];
 
 uploadArea.addEventListener('click', () => fileInput.click());
-
-uploadArea.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadArea.classList.add('dragover');
-});
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
 uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
 uploadArea.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadArea.classList.remove('dragover');
+  e.preventDefault(); uploadArea.classList.remove('dragover');
   if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
 });
-
-fileInput.addEventListener('change', e => {
-  if (e.target.files.length) handleFile(e.target.files[0]);
-});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
 
 function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (!ALLOWED_EXT.includes(ext)) {
-    showNotif('notifSiswa', 'error', '❌ Format file tidak didukung. Gunakan PDF, DOCX, PPTX, XLSX, JPG, atau PNG.');
+    showNotif('notifSiswa', 'error', '❌ Format tidak didukung. Gunakan PDF, DOCX, PPTX, XLSX, JPG, PNG.');
     return;
   }
   if (file.size > MAX_SIZE) {
@@ -725,8 +520,7 @@ function formatSize(bytes) {
 }
 
 removeFileBtn.addEventListener('click', () => {
-  selectedFile = null;
-  fileInput.value = '';
+  selectedFile = null; fileInput.value = '';
   filePreview.classList.remove('show');
 });
 
@@ -735,37 +529,32 @@ function showNotif(id, type, msg) {
   const el = document.getElementById(id);
   el.className = 'notification ' + type + ' show';
   el.textContent = msg;
-  if (type === 'success') {
-    setTimeout(() => el.classList.remove('show'), 6000);
-  }
+  if (type === 'success') setTimeout(() => el.classList.remove('show'), 7000);
 }
 
-// --- Cek konfigurasi Firebase ---
-function isFirebaseConfigured() {
-  return window.__FIREBASE__ &&
-    window.__FIREBASE__ &&
-    !window.__FIREBASE__.db.app.options.apiKey?.includes('ISI_');
+// --- Cek status Firebase ---
+function updateConfigUI() {
+  const ready = !!window.__FB__;
+  document.getElementById('configWarning').style.display = ready ? 'none' : 'block';
+  document.getElementById('configWarning2').style.display = ready ? 'none' : 'block';
+  const ok = document.getElementById('configOk');
+  if (ok) ok.style.display = ready ? 'block' : 'none';
 }
 
-function checkConfigWarning() {
-  const ok = window.__FIREBASE__ && window.__FIREBASE__.db.app.options.apiKey;
-  if (!ok || ok === 'ISI_API_KEY_ANDA') {
-    document.getElementById('configWarning').style.display = 'block';
-    document.getElementById('configWarning2').style.display = 'block';
-  } else {
-    document.getElementById('configWarning').style.display = 'none';
-    document.getElementById('configWarning2').style.display = 'none';
-  }
-}
-setTimeout(checkConfigWarning, 500);
+// Firebase-ready event + polling
+window.addEventListener('firebase-ready', updateConfigUI);
+let tries = 0;
+const poll = setInterval(() => {
+  updateConfigUI();
+  if (window.__FB__ || ++tries > 20) clearInterval(poll);
+}, 200);
 
 // --- Tanggal default ---
 document.getElementById('tglBeri').valueAsDate = new Date();
 
-// --- Submit Tugas ---
+// --- Submit tugas ---
 document.getElementById('formTugas').addEventListener('submit', async (e) => {
   e.preventDefault();
-
   const btn = document.getElementById('submitBtn');
   const notif = document.getElementById('notifSiswa');
 
@@ -773,9 +562,8 @@ document.getElementById('formTugas').addEventListener('submit', async (e) => {
     showNotif('notifSiswa', 'error', '❌ Silakan pilih file tugas terlebih dahulu.');
     return;
   }
-
-  if (!window.__FIREBASE__) {
-    showNotif('notifSiswa', 'error', '❌ Firebase belum siap. Periksa konfigurasi.');
+  if (!window.__FB__) {
+    showNotif('notifSiswa', 'error', '❌ Firebase belum terhubung. Periksa firebaseConfig.');
     return;
   }
 
@@ -784,15 +572,13 @@ document.getElementById('formTugas').addEventListener('submit', async (e) => {
   notif.classList.remove('show');
 
   try {
-    const F = window.__FIREBASE__;
+    const F = window.__FB__;
 
-    // 1. Upload file ke Storage
     const safeName = Date.now() + '_' + selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storageRef = F.ref(F.storage, 'tugas/' + safeName);
     await F.uploadBytes(storageRef, selectedFile);
     const fileURL = await F.getDownloadURL(storageRef);
 
-    // 2. Simpan metadata ke Firestore
     const deadlineVal = document.getElementById('deadline').value;
     const deadline = new Date(deadlineVal);
     const now = new Date();
@@ -823,7 +609,6 @@ document.getElementById('formTugas').addEventListener('submit', async (e) => {
       '✅ Tugas berhasil dikumpulkan! Status: ' +
       (status === 'terlambat' ? 'Terlambat' : 'Tepat Waktu') + '.');
 
-    // Reset form
     document.getElementById('formTugas').reset();
     document.getElementById('tglBeri').valueAsDate = new Date();
     selectedFile = null;
@@ -832,24 +617,23 @@ document.getElementById('formTugas').addEventListener('submit', async (e) => {
 
   } catch (err) {
     console.error(err);
-    showNotif('notifSiswa', 'error',
-      '❌ Gagal mengirim: ' + (err.message || 'Terjadi kesalahan.'));
+    showNotif('notifSiswa', 'error', '❌ Gagal mengirim: ' + (err.message || 'Terjadi kesalahan.'));
   } finally {
     btn.disabled = false;
     btn.textContent = '📤 Kumpulkan Tugas';
   }
 });
 
-// --- Load Data untuk Guru ---
+// --- Load data guru ---
 async function loadDataGuru() {
   const tbody = document.getElementById('tabelGuru');
 
-  if (!window.__FIREBASE__) {
+  if (!window.__FB__) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Firebase belum dikonfigurasi.</td></tr>';
     return;
   }
 
-  const F = window.__FIREBASE__;
+  const F = window.__FB__;
   tbody.innerHTML = '<tr><td colspan="8" class="empty-state">⏳ Memuat data...</td></tr>';
 
   try {
@@ -859,8 +643,8 @@ async function loadDataGuru() {
     let total = 0, late = 0, ontime = 0;
     const rows = [];
 
-    snap.forEach((doc) => {
-      const d = doc.data();
+    snap.forEach((docSnap) => {
+      const d = docSnap.data();
       total++;
       if (d.status === 'terlambat') late++; else ontime++;
 
@@ -869,13 +653,13 @@ async function loadDataGuru() {
         : '-';
 
       rows.push(`
-        <tr data-id="${doc.id}">
+        <tr>
           <td>${rows.length + 1}</td>
           <td><b>${escapeHtml(d.nama)}</b><br><small>${escapeHtml(d.kelas)} · No. ${escapeHtml(String(d.absen))}</small></td>
           <td>${escapeHtml(d.mapel)}<br><small>Guru: ${escapeHtml(d.guru)}</small></td>
           <td>${escapeHtml(d.judul)}</td>
           <td>
-            <a href="${d.fileURL}" target="_blank" class="btn btn-outline btn-sm">📥 Unduh</a><br>
+            <a href="${d.fileURL}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">📥 Unduh</a><br>
             <small>${escapeHtml(d.fileName)}</small>
           </td>
           <td><small>${waktu}</small></td>
@@ -887,10 +671,10 @@ async function loadDataGuru() {
           <td>
             <input type="number" class="teacher-note-input" placeholder="Nilai"
                    value="${d.nilai || ''}" min="0" max="100"
-                   onchange="simpanNilai('${doc.id}', this.value, 'nilai')">
+                   data-id="${docSnap.id}" data-field="nilai" onchange="simpanNilai(this)">
             <input type="text" class="teacher-note-input" placeholder="Catatan"
                    value="${escapeHtml(d.catatan || '')}"
-                   onchange="simpanNilai('${doc.id}', this.value, 'catatan')">
+                   data-id="${docSnap.id}" data-field="catatan" onchange="simpanNilai(this)">
           </td>
         </tr>
       `);
@@ -908,39 +692,39 @@ async function loadDataGuru() {
 
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">❌ Gagal memuat: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">❌ Gagal memuat: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
-// --- Simpan nilai/catatan guru ---
-window.simpanNilai = async function(docId, value, field) {
-  if (!window.__FIREBASE__) return;
-  const F = window.__FIREBASE__;
+// --- Simpan nilai/catatan ---
+window.simpanNilai = async function(inputEl) {
+  if (!window.__FB__) return;
+  const F = window.__FB__;
+  const id = inputEl.dataset.id;
+  const field = inputEl.dataset.field;
+  const value = inputEl.value;
   try {
-    // updateDoc butuh import khusus — kita pakai setDoc/update via compat
-    const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-    await updateDoc(doc(F.db, 'tugas', docId), { [field]: value });
-    console.log('Tersimpan:', field, value);
+    await F.updateDoc(F.doc(F.db, 'tugas', id), { [field]: value });
+    inputEl.style.borderColor = '#86efac';
+    setTimeout(() => { inputEl.style.borderColor = '#e2e8f0'; }, 1200);
   } catch (err) {
-    console.error('Gagal simpan nilai:', err);
-    alert('Gagal menyimpan nilai: ' + err.message);
+    console.error(err);
+    inputEl.style.borderColor = '#fca5a5';
+    alert('Gagal menyimpan: ' + err.message);
   }
 };
 
 document.getElementById('refreshBtn').addEventListener('click', loadDataGuru);
 
-// --- Util escape HTML ---
+// --- Escape HTML ---
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Load awal jika tab guru aktif
+// Load awal
 if (!panelGuru.classList.contains('hidden')) loadDataGuru();
 </script>
 
